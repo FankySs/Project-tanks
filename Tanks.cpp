@@ -11,6 +11,14 @@
 #define MAX_PLAYERS 5
 #define M_PI 3.14159265358979323846
 #define GRAVITY 30
+#define TERRAIN_CHAR '#' 
+#define BORDER_CHAR '#' 
+#define AIR_CHAR ' ' 
+#define TANK_CHAR 'T' 
+#define EXPLOSION_CHAR 'X' 
+
+
+
 
 // Struktura reprezentující tank v hře
 typedef struct Tank {
@@ -157,6 +165,7 @@ void startGame(int playerCount, Tank* players) {
     while (isGameRunning) {
         system("cls"); // Vyčistíme konzoli pro nový tah
 
+
         if (!players[currentPlayerIndex].isHit) {
             playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
         }
@@ -238,19 +247,19 @@ char** createGameField(int rows, int columns, int* heightMap) {
         for (int j = 0; j < columns; j++) {
             // Horní a dolní okraj
             if (i == 0 || i == rows - 1) {
-                matrix[i][j] = '#';
+                matrix[i][j] = BORDER_CHAR;
             }
             // Levý a pravý okraj
             else if (j == 0 || j == columns - 1) {
-                matrix[i][j] = '#';
+                matrix[i][j] = BORDER_CHAR;
             }
             // Terén a vzduch
             else {
                 if (i < heightMap[j]) {
-                    matrix[i][j] = '*'; // Terén
+                    matrix[i][j] = TERRAIN_CHAR; // Terén
                 }
                 else {
-                    matrix[i][j] = ' '; // Vzduch
+                    matrix[i][j] = AIR_CHAR; // Vzduch
                 }
             }
         }
@@ -273,10 +282,10 @@ void initializeGameField(char** matrix, int rows, int columns, int playerCount, 
             int y = heightMap[x];
 
             // Kontrola, zda je místo volné 
-            if (matrix[y][x] == ' ' && matrix[y + 1][x] != 'T') {
-                matrix[y + 1][x] = 'T'; // Umístíme tank hned nad terén
+            if (matrix[y][x] == AIR_CHAR && matrix[y + 1][x] != TANK_CHAR) {
+                matrix[y + 1][x] = TANK_CHAR; // Umístíme tank hned nad terén
                 players[i].xPosition = x;
-                players[i].yPosition = y + 1;
+                players[i].yPosition = y;
                 players[i].isHit = false;
                 placed = true;
             }
@@ -299,17 +308,13 @@ void printGameField(char** matrix, int rows, int columns, Tank* players, int pla
             cursorPos.Y = (rows - 1) - i;  // Obrátíme osu Y
             SetConsoleCursorPosition(hConsole, cursorPos);
 
-            if (matrix[i][j] == 'T') {
+            if (matrix[i][j] == TANK_CHAR) {
                 SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
-                printf("T");
+                printf("%c", TANK_CHAR);
             }
-            else if (matrix[i][j] == '*') {
-                SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
-                printf("*");
-            }
-            else if (matrix[i][j] == '#') {
+            else if (matrix[i][j] == TERRAIN_CHAR) {
                 SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
-                printf("#");
+                printf("%c", TERRAIN_CHAR);
             }
             else {
                 SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
@@ -387,9 +392,9 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
 
         // Kontrola, zda střela dosáhla hranice herního pole nebo terénu
         if (nextX < 1 || nextX >= WIDTH - 1 || nextY < 1 || nextY >= HEIGHT - 1 ||
-            matrix[nextY][nextX] == '*' || matrix[nextY][nextX] == 'T') {
+            matrix[nextY][nextX] == TERRAIN_CHAR || matrix[nextY][nextX] == TANK_CHAR) {
             // V případě zásahu tanku nebo terénu provedeme výbuch
-            if (matrix[nextY][nextX] == '*' || matrix[nextY][nextX] == 'T') {
+            if (matrix[nextY][nextX] == TERRAIN_CHAR || matrix[nextY][nextX] == TANK_CHAR) {
                 animateExplosion(matrix, nextX, nextY, HEIGHT, WIDTH, players, playerCount);
             }
             break;
@@ -400,14 +405,14 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
             cursorPos.X = prevX;
             cursorPos.Y = HEIGHT - 1 - prevY;
             SetConsoleCursorPosition(hConsole, cursorPos);
-            printf(" ");
+            printf("%c", AIR_CHAR);
         }
 
         // Vykreslení projektilu na nové pozici
         cursorPos.X = nextX;
         cursorPos.Y = HEIGHT - 1 - nextY;
         SetConsoleCursorPosition(hConsole, cursorPos);
-        printf("*");
+        printf("%c", TERRAIN_CHAR);
 
         // Aktualizace pro další iteraci
         prevX = nextX;
@@ -420,7 +425,7 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     cursorPos.X = prevX;
     cursorPos.Y = HEIGHT - 1 - prevY;
     SetConsoleCursorPosition(hConsole, cursorPos);
-    printf(" ");
+    printf("%c", AIR_CHAR);
 
     // Resetování barvy textu
     SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
@@ -434,7 +439,7 @@ void destroyTerrain(char** matrix, int x, int y, int rows, int columns) {
     for (int i = y - radius; i <= y + radius; i++) {
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
-                matrix[i][j] = ' ';
+                matrix[i][j] = AIR_CHAR;
             }
         }
     }
@@ -442,7 +447,7 @@ void destroyTerrain(char** matrix, int x, int y, int rows, int columns) {
 
 void checkAndMoveTanks(char** matrix, Tank* players, int playerCount, int rows, int columns) {
     for (int i = 0; i < playerCount; i++) {
-        while (players[i].yPosition < rows - 1 && matrix[players[i].yPosition + 1][players[i].xPosition] == ' ') {
+        while (players[i].yPosition < rows - 1 && matrix[players[i].yPosition + 1][players[i].xPosition] == AIR_CHAR) {
             players[i].yPosition++;
         }
     }
@@ -457,7 +462,7 @@ void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* 
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
                 SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
-                matrix[i][j] = 'X'; 
+                matrix[i][j] = EXPLOSION_CHAR;
             }
         }
     }
@@ -468,7 +473,7 @@ void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* 
     for (int i = y - radius; i <= y + radius; i++) {
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
-                matrix[i][j] = ' ';
+                matrix[i][j] = AIR_CHAR;
             }
         }
     }
