@@ -5,6 +5,7 @@
 #include <math.h>
 #include <time.h>
 #include <windows.h>
+#include <conio.h> // Pouze pro Windows!
 
 #define WIDTH 130
 #define HEIGHT 40
@@ -164,17 +165,18 @@ void startGame(int playerCount, Tank* players) {
 
     while (isGameRunning) {
         system("cls"); // Vyčistíme konzoli pro nový tah
+        printGameField(gameField, HEIGHT, WIDTH, players, playerCount); // Vytiskneme herní pole
 
-
-        if (!players[currentPlayerIndex].isHit) {
-            playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
-        }
-        updateGameField(gameField, players, playerCount);
+        // Tah současného hráče
+        playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
 
         // Kontrola, zda není hra ukončena stisknutím 'q'
-        char input = getchar();
-        if (input == 'q') {
-            isGameRunning = false;
+        if (_kbhit()) { // Předpona podtržítka pro kompatibilitu s různými kompilátory
+            char input = _getch();
+            if (input == 'q' || input == 'Q') {
+                isGameRunning = false;
+                system("cls");
+            }
         }
 
         // Kontrola, zda zůstal pouze jeden tank
@@ -189,7 +191,11 @@ void startGame(int playerCount, Tank* players) {
             endGame(players, playerCount); // Volání funkce endGame, pokud hra skončila
         }
 
-        currentPlayerIndex = (currentPlayerIndex + 1) % playerCount; // Přechod na dalšího hráče
+        // Přechod na dalšího hráče
+        currentPlayerIndex = (currentPlayerIndex + 1) % playerCount;
+
+        // Krátká pauza před přechodem na dalšího hráče
+        Sleep(1000);
     }
 
     // Uvolnění herního pole
@@ -198,6 +204,7 @@ void startGame(int playerCount, Tank* players) {
     }
     free(gameField);
 }
+
 
 
 void generateHeightMap(int* heightMap, int columns) {
@@ -335,11 +342,10 @@ void printGameField(char** matrix, int rows, int columns, Tank* players, int pla
 
 
 void updateGameField(char** matrix, Tank* players, int playerCount) {
-    for (int i = 0; i < playerCount; i++) {
-        if (!players[i].isHit) {
-            playerTurn(&players[i], matrix, playerCount, players);
-        }
-    }
+    // Provede pouze aktualizaci herního pole, jako je pohyb tanků nebo úpravy terénu
+    checkAndMoveTanks(matrix, players, playerCount, HEIGHT, WIDTH);
+    // Další aktualizace herního pole podle potřeby
+    // Tato funkce by neměla volat playerTurn nebo měnit currentPlayerIndex
 }
 
 void playerTurn(Tank* currentPlayer, char** matrix, int playerCount, Tank* players) {
@@ -374,38 +380,45 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     angle = 180 - angle;
     float radian = angle * M_PI / 180;
 
+    power = power / 10;
+
     // Výpočet rychlosti ve směrech X a Y
     float xVelocity = power * cos(radian);
     float yVelocity = -power * sin(radian); // Obrácení Y pro obrácené herní pole
 
     float time = 0.0;
-    int prevX = tank->xPosition;
-    int prevY = tank->yPosition + 1;
+
+    // Upravit počáteční pozici projektilu
+    int offsetX = cos(radian); // Offset na základě úhlu
+    int offsetY = sin(radian); // Offset na základě úhlu
+    int prevX = tank->xPosition; // Projektil začíná na stejné x-pozici jako tank
+    int prevY = tank->yPosition + 2; // Projektil začíná výše než tank
 
     // Zpomalení střely na základě síly
     int sleepDuration = (200 - (power * 10)); // Zvětšení hodnoty pro zpomalení
 
     while (true) {
-        time += 0.1;
+        time += 0.05;
         int nextX = prevX + (int)(xVelocity * time);
         int nextY = prevY - (int)(yVelocity * time - 0.5 * GRAVITY * time * time);
 
-        // Kontrola, zda střela dosáhla hranice herního pole nebo terénu
-        if (nextX < 1 || nextX >= WIDTH - 1 || nextY < 1 || nextY >= HEIGHT - 1 ||
-            matrix[nextY][nextX] == TERRAIN_CHAR || matrix[nextY][nextX] == TANK_CHAR) {
-            // V případě zásahu tanku nebo terénu provedeme výbuch
-            if (matrix[nextY][nextX] == TERRAIN_CHAR || matrix[nextY][nextX] == TANK_CHAR) {
-                animateExplosion(matrix, nextX, nextY, HEIGHT, WIDTH, players, playerCount);
-            }
+        // Zajištění, že pozice projektilu jsou v rámci herního pole
+        if (nextX < 1 || nextX >= WIDTH - 1 || nextY < 1 || nextY >= HEIGHT - 1) {
+            // Projektil je mimo hranice herního pole, ukončí smyčku a tah hráče
             break;
         }
 
+        // Kontrola, zda střela zasáhla hranici herního pole, terén nebo tank
+        if (matrix[nextY][nextX] == BORDER_CHAR || matrix[nextY][nextX] == TERRAIN_CHAR || matrix[nextY][nextX] == TANK_CHAR) {
+            // V případě zásahu terénu nebo tanku provedeme výbuch
+            animateExplosion(matrix, nextX, nextY, HEIGHT, WIDTH, players, playerCount);
+            break; // Ukončí smyčku a tah hráče
+        }
+
         // Vymazání projektilu z předchozí pozice, pokud se přesunul
-        if (nextX != prevX || nextY != prevY) {
-            cursorPos.X = prevX;
-            cursorPos.Y = HEIGHT - 1 - prevY;
-            SetConsoleCursorPosition(hConsole, cursorPos);
-            printf("%c", AIR_CHAR);
+        if ((nextX != prevX || nextY != prevY) && matrix[prevY][prevX] != TANK_CHAR) {
+            // Pouze pokud na předchozí pozici nebyl tank
+            matrix[prevY][prevX] = AIR_CHAR;
         }
 
         // Vykreslení projektilu na nové pozici
@@ -430,7 +443,6 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     // Resetování barvy textu
     SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 }
-
 
 
 
