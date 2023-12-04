@@ -11,10 +11,10 @@
 #define HEIGHT 40
 #define MAX_PLAYERS 5
 #define M_PI 3.14159265358979323846
-#define GRAVITY 30
-#define TERRAIN_CHAR '#' 
-#define BORDER_CHAR '#' 
-#define AIR_CHAR ' ' 
+#define GRAVITY 10
+#define TERRAIN_CHAR (char)178     //'#' 
+#define BORDER_CHAR (char)219     //'#' 
+#define AIR_CHAR (char)176    //' ' 
 #define TANK_CHAR 'T' 
 #define EXPLOSION_CHAR 'X' 
 
@@ -165,7 +165,6 @@ void startGame(int playerCount, Tank* players) {
 
     while (isGameRunning) {
         system("cls"); // Vyčistíme konzoli pro nový tah
-        printGameField(gameField, HEIGHT, WIDTH, players, playerCount); // Vytiskneme herní pole
 
         // Tah současného hráče
         playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
@@ -290,7 +289,7 @@ void initializeGameField(char** matrix, int rows, int columns, int playerCount, 
 
             // Kontrola, zda je místo volné 
             if (matrix[y][x] == AIR_CHAR && matrix[y + 1][x] != TANK_CHAR) {
-                matrix[y + 1][x] = TANK_CHAR; // Umístíme tank hned nad terén
+                matrix[y][x] = TANK_CHAR; // Umístíme tank hned nad terén
                 players[i].xPosition = x;
                 players[i].yPosition = y;
                 players[i].isHit = false;
@@ -349,8 +348,7 @@ void updateGameField(char** matrix, Tank* players, int playerCount) {
 }
 
 void playerTurn(Tank* currentPlayer, char** matrix, int playerCount, Tank* players) {
-    // Tisk herního pole a zobrazení výzvy pro hráče
-    printGameField(matrix, HEIGHT, WIDTH, players, playerCount);
+
 
     // Hráč vystřelí projektil
     fireProjectile(currentPlayer, matrix, playerCount, players);
@@ -377,30 +375,32 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     while (getchar() != '\n'); // Vyčistit buffer po scanf
 
     // Obrátíme úhel pro střelbu v obráceném herním poli
-    angle = 180 - angle;
-    float radian = angle * M_PI / 180;
+    //angle = 180 - angle;
+    float radian = angle * (M_PI / 180);
 
-    power = power / 10;
+   
 
     // Výpočet rychlosti ve směrech X a Y
-    float xVelocity = power * cos(radian);
-    float yVelocity = -power * sin(radian); // Obrácení Y pro obrácené herní pole
+    float xVelocity =10 * power * cos(radian);
+    float yVelocity =10 * power * -sin(radian); // Obrácení Y pro obrácené herní pole
 
     float time = 0.0;
 
     // Upravit počáteční pozici projektilu
     int offsetX = cos(radian); // Offset na základě úhlu
     int offsetY = sin(radian); // Offset na základě úhlu
+    int puvX = tank->xPosition;
+    int puvY = tank->yPosition + 2;
     int prevX = tank->xPosition; // Projektil začíná na stejné x-pozici jako tank
     int prevY = tank->yPosition + 2; // Projektil začíná výše než tank
 
     // Zpomalení střely na základě síly
-    int sleepDuration = (200 - (power * 10)); // Zvětšení hodnoty pro zpomalení
+   // int sleepDuration = (200 - (power * 10)); // Zvětšení hodnoty pro zpomalení
 
     while (true) {
         time += 0.05;
-        int nextX = prevX + (int)(xVelocity * time);
-        int nextY = prevY - (int)(yVelocity * time - 0.5 * GRAVITY * time * time);
+        int nextX = puvX + (int)(xVelocity * time);
+        int nextY = puvY - (int)(yVelocity * time) - (- 0.5 * -GRAVITY * time * time);
 
         // Zajištění, že pozice projektilu jsou v rámci herního pole
         if (nextX < 1 || nextX >= WIDTH - 1 || nextY < 1 || nextY >= HEIGHT - 1) {
@@ -431,7 +431,7 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
         prevX = nextX;
         prevY = nextY;
 
-        Sleep(sleepDuration);
+        Sleep(10);
     }
 
     // Po skončení smyčky vymažeme střelu
