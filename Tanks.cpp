@@ -164,7 +164,7 @@ void startGame(int playerCount, Tank* players) {
     int currentPlayerIndex = 0; // Index pro sledování, čí je tah
 
     while (isGameRunning) {
-        system("cls"); // Vyčistíme konzoli pro nový tah
+        system("cls"); // Vyčistíme konzoli pro nový tah  dsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
 
         // Tah současného hráče
         playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
@@ -355,6 +355,7 @@ void playerTurn(Tank* currentPlayer, char** matrix, int playerCount, Tank* playe
 
     // Hráč vystřelí projektil
     fireProjectile(currentPlayer, matrix, playerCount, players);
+    //checkAndMoveTanks(matrix, players, playerCount, HEIGHT, WIDTH);
 }
 
 
@@ -365,7 +366,7 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     COORD cursorPos;
 
     // Před zahájením výstřelu vymažeme předchozí vstup
-    system("cls");
+    //system("cls");
     printGameField(matrix, HEIGHT, WIDTH, players, playerCount);
     printf("\nPlayer %s's turn.\n", tank->name);
 
@@ -472,16 +473,19 @@ void checkAndMoveTanks(char** matrix, Tank* players, int playerCount, int rows, 
 void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* players, int playerCount) {
     const int radius = 2; // Rozsah výbuchu
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-
+    COORD cursorPos;
     for (int i = y - radius; i <= y + radius; i++) {
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
                 SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
-                matrix[i][j] = EXPLOSION_CHAR;
+                cursorPos.X = j;
+                cursorPos.Y = HEIGHT- i - 1;
+                SetConsoleCursorPosition(hConsole,cursorPos);
+                printf("%c", EXPLOSION_CHAR);
             }
         }
     }
-
+    
     Sleep(500); // Pauza pro animaci výbuchu
 
     // Resetování původního stavu herního pole
