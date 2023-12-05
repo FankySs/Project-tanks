@@ -164,7 +164,7 @@ void startGame(int playerCount, Tank* players) {
     int currentPlayerIndex = 0; // Index pro sledování, čí je tah
 
     while (isGameRunning) {
-        system("cls"); // Vyčistíme konzoli pro nový tah  dsssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss
+        system("cls"); // Vyčistíme konzoli pro nový tah  
 
         // Tah současného hráče
         playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
@@ -177,7 +177,17 @@ void startGame(int playerCount, Tank* players) {
                 system("cls");
             }
         }
-
+        for (int i = 0; i < playerCount; i++) {
+            if (gameField[players[i].yPosition][players[i].xPosition] == TANK_CHAR)
+            {
+                players[i].isHit = false;
+            }
+            else
+            {
+                players[i].isHit = true;
+            }
+            
+        }
         // Kontrola, zda zůstal pouze jeden tank
         int aliveTanks = 0;
         for (int i = 0; i < playerCount; i++) {
@@ -514,6 +524,7 @@ bool checkForHits(int x, int y, Tank* players, int playerCount) {
 }
 
 void endGame(Tank* players, int playerCount) {
+    
     int aliveTanks = 0;
     Tank* winner = NULL;
     for (int i = 0; i < playerCount; i++) {
@@ -523,6 +534,8 @@ void endGame(Tank* players, int playerCount) {
         }
     }
     if (aliveTanks == 1) {
+        system("cls");
+        SetCursorPos(0, 0);
         printf("Game over, player %s wins!\n", winner->name);
     }
 }
