@@ -12,7 +12,7 @@ endif()
 project ("Tanks")
 
 # Přidejte zdrojový kód ke spustitelnému souboru tohoto projektu.
-add_executable (Tanks "Tanks.cpp" "Tanks.h" "menu.cpp")
+add_executable (Tanks "Tanks.cpp" "Tanks.h")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET Tanks PROPERTY CXX_STANDARD 20)
