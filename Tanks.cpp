@@ -293,6 +293,9 @@ void initializeGameField(char** matrix, int rows, int columns, int playerCount, 
                 players[i].xPosition = x;
                 players[i].yPosition = y;
                 players[i].isHit = false;
+                players[i].name[0] = 'P';
+                players[i].name[1] = 49+ i;
+                players[i].name[2] = '\0';
                 placed = true;
             }
             attempts++;
