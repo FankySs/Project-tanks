@@ -7,16 +7,17 @@
 #include <windows.h>
 #include <conio.h> // Pouze pro Windows!
 
-#define WIDTH 130
+#define WIDTH 140
 #define HEIGHT 40
 #define MAX_PLAYERS 5
 #define M_PI 3.14159265358979323846
 #define GRAVITY 10
-#define TERRAIN_CHAR (char)178     //'#' 
-#define BORDER_CHAR (char)219     //'#' 
-#define AIR_CHAR (char)176    //' ' 
+#define TERRAIN_CHAR (char)178    
+#define BORDER_CHAR (char)219  
+#define AIR_CHAR (char)176
 #define TANK_CHAR 'T' 
 #define EXPLOSION_CHAR 'X' 
+#define RADIUS_OF_EXPLOSION 1
 
 
 
@@ -58,26 +59,17 @@ void initializeGameField(char** matrix, int rows, int columns, int playerCount, 
 // Vytiskne herní pole a aktuální stav hry.
 void printGameField(char** matrix, int rows, int columns, Tank* players, int playerCount);
 
-// Aktualizuje herní pole po každém tah hráče.
-void updateGameField(char** matrix, Tank* players, int playerCount);
-
 // Tah jednoho hráče.
 void playerTurn(Tank* currentPlayer, char** matrix, int playerCount, Tank* players);
 
 // Hráč vystřelí projektil s určitou silou a úhlem.
 void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players);
 
-// Zničí terén na určité pozici v okolí výbuchu.
-void destroyTerrain(char** matrix, int x, int y, int rows, int columns);
-
 // Kontroluje a pohybuje tanky, pokud se mohou pohybovat dolů.
-void checkAndMoveTanks(char** matrix, Tank* players, int playerCount, int rows, int columns);
+void checkAndMoveTanks(char** matrix, Tank* players, int playerCount);
 
 // Animuje explozi na dané pozici.
 void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* players, int playerCount);
-
-// Kontroluje, zda byl zásah na dané pozici a aktualizuje stav hráčů.
-bool checkForHits(int x, int y, Tank* players, int playerCount);
 
 // Ukáže výsledky hry a vyhlásí vítěze.
 void endGame(Tank* players, int playerCount);
@@ -87,12 +79,13 @@ int main() {
     return 0;
 }
 
-
-
 void runGameLoop() {
 
     printf("Welcome to the Tank Game!\n");
     printf("Use the menu to set up and start the game.\n");
+
+    printf("System loading...\n");
+
 
     while (1) {
         displayMainMenu();
@@ -105,7 +98,15 @@ void displayMainMenu() {
     int playerCount = 2;
     Tank players[MAX_PLAYERS];
 
+    for (int i = 0; i <= MAX_PLAYERS - 1; i++){
+        players[i].name[0] = 'P';
+        players[i].name[1] = 49 + i;
+        players[i].name[2] = '\0';
+    }
+
     while (1) {
+        Sleep(2000);
+        system("cls");
         printf("Main Menu\n");
         printf("1. Set Number of Players (Currently %d)\n", playerCount);
         printf("2. Enter Player Names\n");
@@ -128,7 +129,10 @@ void displayMainMenu() {
         case 4:
             exit(0);
         default:
+            system("cls");
             printf("Invalid choice. Please try again.\n");
+            Sleep(1500);
+            system("cls");
         }
     }
 }
@@ -167,15 +171,8 @@ void startGame(int playerCount, Tank* players) {
         system("cls"); // Vyčistíme konzoli pro nový tah  
 
         // Tah současného hráče
-        playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
-
-        // Kontrola, zda není hra ukončena stisknutím 'q'
-        if (_kbhit()) { // Předpona podtržítka pro kompatibilitu s různými kompilátory
-            char input = _getch();
-            if (input == 'q' || input == 'Q') {
-                isGameRunning = false;
-                system("cls");
-            }
+        if (players[currentPlayerIndex].isHit == false) {
+            playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
         }
         for (int i = 0; i < playerCount; i++) {
             if (gameField[players[i].yPosition][players[i].xPosition] == TANK_CHAR)
@@ -213,8 +210,6 @@ void startGame(int playerCount, Tank* players) {
     }
     free(gameField);
 }
-
-
 
 void generateHeightMap(int* heightMap, int columns) {
     int minHeight = 5;  // Minimální počáteční výška
@@ -284,7 +279,6 @@ char** createGameField(int rows, int columns, int* heightMap) {
     return matrix;
 }
 
-
 void initializeGameField(char** matrix, int rows, int columns, int playerCount, Tank* players, int* heightMap) {
     srand((unsigned int)time(NULL)); // Initialize random seed
     for (int i = 0; i < playerCount; i++) {
@@ -303,9 +297,6 @@ void initializeGameField(char** matrix, int rows, int columns, int playerCount, 
                 players[i].xPosition = x;
                 players[i].yPosition = y;
                 players[i].isHit = false;
-                players[i].name[0] = 'P';
-                players[i].name[1] = 49+ i;
-                players[i].name[2] = '\0';
                 placed = true;
             }
             attempts++;
@@ -351,23 +342,10 @@ void printGameField(char** matrix, int rows, int columns, Tank* players, int pla
     SetConsoleCursorPosition(hConsole, cursorPos);
 }
 
-
-
-void updateGameField(char** matrix, Tank* players, int playerCount) {
-    // Provede pouze aktualizaci herního pole, jako je pohyb tanků nebo úpravy terénu
-    checkAndMoveTanks(matrix, players, playerCount, HEIGHT, WIDTH);
-    // Další aktualizace herního pole podle potřeby
-    // Tato funkce by neměla volat playerTurn nebo měnit currentPlayerIndex
-}
-
 void playerTurn(Tank* currentPlayer, char** matrix, int playerCount, Tank* players) {
-
-
     // Hráč vystřelí projektil
     fireProjectile(currentPlayer, matrix, playerCount, players);
-    //checkAndMoveTanks(matrix, players, playerCount, HEIGHT, WIDTH);
 }
-
 
 void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     int power;
@@ -375,28 +353,74 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     COORD cursorPos;
 
-    // Před zahájením výstřelu vymažeme předchozí vstup
-    //system("cls");
+    checkAndMoveTanks(matrix, players, playerCount);
     printGameField(matrix, HEIGHT, WIDTH, players, playerCount);
+
     printf("\nPlayer %s's turn.\n", tank->name);
 
-    printf("Enter power (1-5): ");
-    scanf("%d", &power);
-    while (getchar() != '\n'); // Vyčistit buffer po scanf
+    bool validInput = false;
+    // Ošetření vstupu pro 'power'
+    while (!validInput) {
+        printf("Enter power (1-5): ");
+        if (scanf("%d", &power) == 1) { // Kontrola, zda byl vstup správně načten
+            if (power >= 1 && power <= 5) {
+                validInput = true; // Vstup je platný
+            }
+            else {
+                printf("Invalid input. Please enter a number between 1 and 5.\n");
+            }
+        }
+        else {
+            printf("Invalid input. Please enter a numeric value.\n");
+        }
+        while (getchar() != '\n'); // Vyčistit buffer
+    }
 
-    printf("Enter angle (0-180): ");
-    scanf("%f", &angle);
-    while (getchar() != '\n'); // Vyčistit buffer po scanf
+    validInput = false; // Resetovat indikátor platnosti pro další vstup
 
-    // Obrátíme úhel pro střelbu v obráceném herním poli
-    //angle = 180 - angle;
+    // Ošetření vstupu pro 'angle'
+    while (!validInput) {
+        printf("Enter angle (0-180): ");
+        if (scanf("%f", &angle) == 1) { // Kontrola, zda byl vstup správně načten
+            if (angle >= 0.0f && angle <= 180.0f) {
+                validInput = true; // Vstup je platný
+            }
+            else {
+                printf("Invalid input. Please enter a number between 0 and 180.\n");
+            }
+        }
+        else {
+            printf("Invalid input. Please enter a numeric value.\n");
+        }
+        while (getchar() != '\n'); // Vyčistit buffer
+    }
+
     float radian = angle * (M_PI / 180);
 
-   
-
     // Výpočet rychlosti ve směrech X a Y
-    float xVelocity =10 * power * cos(radian);
-    float yVelocity =10 * power * -sin(radian); // Obrácení Y pro obrácené herní pole
+    float xVelocity = 0;
+    float yVelocity = 0;
+
+    switch (power) {
+    case 1:
+        xVelocity = 10 * power * cos(radian);
+        yVelocity = 10 * power * -sin(radian);
+        break;
+    case 2:
+        xVelocity = 8 * power * cos(radian);
+        yVelocity = 8 * power * -sin(radian);
+        break;
+    case 3:
+        xVelocity = 8 * power * cos(radian);
+        yVelocity = 8 * power * -sin(radian);
+        break;
+    case 4:
+        xVelocity = 7 * power * cos(radian);
+        yVelocity = 7 * power * -sin(radian);
+    case 5:
+        xVelocity = 7 * power * cos(radian);
+        yVelocity = 7 * power * -sin(radian);
+    }
 
     float time = 0.0;
 
@@ -407,9 +431,6 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     int puvY = tank->yPosition + 2;
     int prevX = tank->xPosition; // Projektil začíná na stejné x-pozici jako tank
     int prevY = tank->yPosition + 2; // Projektil začíná výše než tank
-
-    // Zpomalení střely na základě síly
-   // int sleepDuration = (200 - (power * 10)); // Zvětšení hodnoty pro zpomalení
 
     while (true) {
         time += 0.05;
@@ -445,7 +466,7 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
         prevX = nextX;
         prevY = nextY;
 
-        Sleep(10);
+        Sleep(20);
     }
 
     // Po skončení smyčky vymažeme střelu
@@ -458,40 +479,32 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 }
 
-
-
-void destroyTerrain(char** matrix, int x, int y, int rows, int columns) {
-    const int radius = 1;
-    for (int i = y - radius; i <= y + radius; i++) {
-        for (int j = x - radius; j <= x + radius; j++) {
-            if (i >= 0 && i < rows && j >= 0 && j < columns) {
-                matrix[i][j] = AIR_CHAR;
-            }
-        }
-    }
-}
-
-void checkAndMoveTanks(char** matrix, Tank* players, int playerCount, int rows, int columns) {
+void checkAndMoveTanks(char** matrix, Tank* players, int playerCount) {
     for (int i = 0; i < playerCount; i++) {
-        while (players[i].yPosition < rows - 1 && matrix[players[i].yPosition + 1][players[i].xPosition] == AIR_CHAR) {
-            players[i].yPosition++;
+        while (matrix[players[i].yPosition - 1][players[i].xPosition] == AIR_CHAR) {
+            matrix[players[i].yPosition][players[i].xPosition] = AIR_CHAR;
+            players[i].yPosition--;
+            matrix[players[i].yPosition][players[i].xPosition] = TANK_CHAR;
         }
     }
 }
-
 
 void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* players, int playerCount) {
-    const int radius = 2; // Rozsah výbuchu
+    const int radius = RADIUS_OF_EXPLOSION; // Rozsah výbuchu
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     COORD cursorPos;
     for (int i = y - radius; i <= y + radius; i++) {
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
+                if (matrix[i][j] != BORDER_CHAR) {
+
+               
                 SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
                 cursorPos.X = j;
                 cursorPos.Y = HEIGHT- i - 1;
                 SetConsoleCursorPosition(hConsole,cursorPos);
                 printf("%c", EXPLOSION_CHAR);
+                }
             }
         }
     }
@@ -502,25 +515,15 @@ void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* 
     for (int i = y - radius; i <= y + radius; i++) {
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
-                matrix[i][j] = AIR_CHAR;
+                if (matrix[i][j] != BORDER_CHAR) {
+                    matrix[i][j] = AIR_CHAR;
+
+                }
             }
         }
     }
 
     SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-}
-
-
-
-
-bool checkForHits(int x, int y, Tank* players, int playerCount) {
-    for (int i = 0; i < playerCount; i++) {
-        if (players[i].xPosition == x && players[i].yPosition == y && !players[i].isHit) {
-            players[i].isHit = true;
-            return true;
-        }
-    }
-    return false;
 }
 
 void endGame(Tank* players, int playerCount) {
