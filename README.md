@@ -28,8 +28,7 @@
 
 <div>
     <h2>Game Screenshot</h2>
-![image](https://github.com/FankySs/Project-tanks/assets/92432292/2944230d-f508-46ed-a298-4aefd3575721)
-</div>
+![Game Screenshot](GameScreenshot.png)</div>
 
 
 <h2>Authors</h2>
