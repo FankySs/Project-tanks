@@ -191,26 +191,22 @@ void startGame(int playerCount, Tank* players) {
 
     while (isGameRunning) {
         system("cls"); // Vyčistíme konzoli pro nový tah  
+        for (int i = 0; i < playerCount; i++) {
+            if (gameField[players[i].yPosition][players[i].xPosition] == TANK_CHAR && players[i].isHit != true)
+            {
+                players[i].isHit = false;
+            }
 
+        }
         // Tah současného hráče
         if (players[currentPlayerIndex].isHit == false) {
             playerTurn(&players[currentPlayerIndex], gameField, playerCount, players);
         }
-        for (int i = 0; i < playerCount; i++) {
-            if (gameField[players[i].yPosition][players[i].xPosition] == TANK_CHAR)
-            {
-                players[i].isHit = false;
-            }
-            else
-            {
-                players[i].isHit = true;
-            }
-            
-        }
+       
         // Kontrola, zda zůstal pouze jeden tank
         int aliveTanks = 0;
         for (int i = 0; i < playerCount; i++) {
-            if (!players[i].isHit) {
+            if (players[i].isHit == false) {
                 aliveTanks++;
             }
         }
@@ -340,19 +336,31 @@ void printGameField(char** matrix, int rows, int columns, Tank* players, int pla
             cursorPos.Y = (rows - 1) - i;  // Obrátíme osu Y
             SetConsoleCursorPosition(hConsole, cursorPos);
 
-            if (matrix[i][j] == TANK_CHAR) {
-                // Zjistíme, zda je to tank na tahu
-                if (i == tank->yPosition && j == tank->xPosition) {
-
-                    // Tank na tahu - červeně
-                    SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
+            if (matrix[i][j] == TANK_CHAR && tank->isHit == false) {
+                bool isHit = false;
+                // Zjistíme, jestli je tank na této pozici zasažen
+                for (int k = 0; k < playerCount; k++) {
+                    if (players[k].xPosition == j && players[k].yPosition == i && players[k].isHit) {
+                        isHit = true;
+                        break;
+                    }
+                }
+                if (isHit) {
+                    printf("%c", AIR_CHAR); 
                 }
                 else {
-                    // Ostatní tanky - modře
-                    SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
-                }
-                printf("%c", TANK_CHAR);
+                    // Zjistíme, zda je to tank na tahu
+                    if (i == tank->yPosition && j == tank->xPosition) {
 
+                        // Tank na tahu - červeně
+                        SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
+                    }
+                    else {
+                        // Ostatní tanky - modře
+                        SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+                    }
+                    printf("%c", TANK_CHAR);
+                }
             }
             else if (matrix[i][j] == TERRAIN_CHAR) {
                 SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
@@ -384,8 +392,9 @@ void fireProjectile(Tank* currentPlayer, char** matrix, int playerCount, Tank* p
     float angle;
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     COORD cursorPos;
-
-    checkAndMoveTanks(matrix, players, playerCount);
+    if (currentPlayer->isHit == false) {
+        checkAndMoveTanks(matrix, players, playerCount);
+    }
     printGameField(matrix, HEIGHT, WIDTH, players, playerCount, currentPlayer);
 
     printf("\nPlayer %s's turn.\n", currentPlayer->name);
@@ -525,17 +534,16 @@ void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* 
     const int radius = RADIUS_OF_EXPLOSION; // Rozsah výbuchu
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     COORD cursorPos;
+
     for (int i = y - radius; i <= y + radius; i++) {
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
                 if (matrix[i][j] != BORDER_CHAR) {
-
-               
-                SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
-                cursorPos.X = j;
-                cursorPos.Y = HEIGHT- i - 1;
-                SetConsoleCursorPosition(hConsole,cursorPos);
-                printf("%c", EXPLOSION_CHAR);
+                    SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
+                    cursorPos.X = j;
+                    cursorPos.Y = HEIGHT - i - 1;
+                    SetConsoleCursorPosition(hConsole, cursorPos);
+                    printf("%c", EXPLOSION_CHAR);
                 }
             }
         }
@@ -543,13 +551,24 @@ void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* 
     
     Sleep(500); // Pauza pro animaci výbuchu
 
+    for (int i = 0; i < playerCount; i++) {
+        // Kontrola, zda se tank nachází v dosahu exploze
+        if (players[i].xPosition >= x - radius && players[i].xPosition <= x + radius &&
+            players[i].yPosition >= y - radius && players[i].yPosition <= y + radius) {
+            players[i].isHit = true; // Zasažený tank
+            system("cls");
+            SetCursorPos(0, 0);
+            printf("Player %s hited!\n", players[i].name);
+            Sleep(1000);
+        }
+    }
+
     // Resetování původního stavu herního pole
     for (int i = y - radius; i <= y + radius; i++) {
         for (int j = x - radius; j <= x + radius; j++) {
             if (i >= 0 && i < rows && j >= 0 && j < columns) {
                 if (matrix[i][j] != BORDER_CHAR) {
                     matrix[i][j] = AIR_CHAR;
-
                 }
             }
         }
