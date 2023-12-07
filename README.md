@@ -28,7 +28,7 @@
 
 <div>
     <h2>Game Screenshot</h2>
-![Game Screenshot](GameScreenshot.png)</div>
+![Game Screenshot](gameScreenShoot.png)</div>
 
 
 <h2>Authors</h2>
