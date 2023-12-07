@@ -38,5 +38,4 @@
 </ul>
 <p>Developed as part of a project for VUT FEKT BPC-AUD AUDB-ZVUK, BPC-PC1T course.</p>
 
-</body>
-</html>
+The point score is 20 out of 20.
