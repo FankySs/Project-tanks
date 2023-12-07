@@ -32,7 +32,7 @@ char** createGameField(int rows, int columns, int* heightMap);
 void initializeGameField(char** matrix, int rows, int columns, int playerCount, Tank* players, int* heightMap);
 
 // Vytiskne herní pole a aktuální stav hry.
-void printGameField(char** matrix, int rows, int columns, Tank* players, int playerCount);
+void printGameField(char** matrix, int rows, int columns, Tank* players, int playerCount, Tank* tank);
 
 // Tah jednoho hráče.
 void playerTurn(Tank* currentPlayer, char** matrix, int playerCount, Tank* players);
@@ -49,17 +49,58 @@ void animateExplosion(char** matrix, int x, int y, int rows, int columns, Tank* 
 // Ukáže výsledky hry a vyhlásí vítěze.
 void endGame(Tank* players, int playerCount);
 
+// Just for fun
+void systemLoading(int numberOfLoadings);
+
 int main() {
+    int numberOfLoadings = 2;
+    systemLoading(numberOfLoadings);
+
     runGameLoop();
     return 0;
+}
+
+void systemLoading(int numberOfLoadings) {
+    switch (numberOfLoadings) {
+    case 1:
+        printf("System loading...\n");
+        system("cls");
+        break;
+    case 2:
+        system("cls");
+        printf("System loading...\n");
+        Sleep(3000);
+        system("cls");
+        break;
+    case 3:
+        system("cls");
+        printf("System loading.\n");
+        Sleep(300);
+        system("cls");
+        printf("System loading..\n");
+        Sleep(300);
+        system("cls");
+        printf("System loading...\n");
+        Sleep(300);
+        system("cls");
+        printf("System loading.\n");
+        Sleep(300);
+        system("cls");
+        printf("System loading..\n");
+        Sleep(300);
+        system("cls");
+        printf("System loading...\n");
+        Sleep(100);
+        system("cls");
+        break;
+
+    }
 }
 
 void runGameLoop() {
 
     printf("Welcome to the Tank Game!\n");
     printf("Use the menu to set up and start the game.\n");
-
-    printf("System loading...\n");
 
 
     while (1) {
@@ -71,6 +112,7 @@ void runGameLoop() {
 void displayMainMenu() {
     int choice = 0;
     int playerCount = 2;
+    int numberOfSystemLoadings = 1;
     Tank players[MAX_PLAYERS];
 
     for (int i = 0; i <= MAX_PLAYERS - 1; i++){
@@ -80,7 +122,8 @@ void displayMainMenu() {
     }
 
     while (1) {
-        Sleep(2000);
+        systemLoading(numberOfSystemLoadings);
+
         system("cls");
         printf("Main Menu\n");
         printf("1. Set Number of Players (Currently %d)\n", playerCount);
@@ -138,6 +181,10 @@ void startGame(int playerCount, Tank* players) {
 
     char** gameField = createGameField(HEIGHT, WIDTH, heightMap); // Vytvoření herního pole s výškovou mapou
     initializeGameField(gameField, HEIGHT, WIDTH, playerCount, players, heightMap);
+
+    int numberOfSystemLoadings = 3;
+
+    systemLoading(numberOfSystemLoadings);
 
     bool isGameRunning = true;
     int currentPlayerIndex = 0; // Index pro sledování, čí je tah
@@ -282,7 +329,7 @@ void initializeGameField(char** matrix, int rows, int columns, int playerCount, 
     }
 }
 
-void printGameField(char** matrix, int rows, int columns, Tank* players, int playerCount) {
+void printGameField(char** matrix, int rows, int columns, Tank* players, int playerCount, Tank* tank) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     COORD cursorPos;
 
@@ -294,8 +341,18 @@ void printGameField(char** matrix, int rows, int columns, Tank* players, int pla
             SetConsoleCursorPosition(hConsole, cursorPos);
 
             if (matrix[i][j] == TANK_CHAR) {
-                SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+                // Zjistíme, zda je to tank na tahu
+                if (i == tank->yPosition && j == tank->xPosition) {
+
+                    // Tank na tahu - červeně
+                    SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
+                }
+                else {
+                    // Ostatní tanky - modře
+                    SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+                }
                 printf("%c", TANK_CHAR);
+
             }
             else if (matrix[i][j] == TERRAIN_CHAR) {
                 SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
@@ -322,16 +379,16 @@ void playerTurn(Tank* currentPlayer, char** matrix, int playerCount, Tank* playe
     fireProjectile(currentPlayer, matrix, playerCount, players);
 }
 
-void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
+void fireProjectile(Tank* currentPlayer, char** matrix, int playerCount, Tank* players) {
     int power;
     float angle;
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     COORD cursorPos;
 
     checkAndMoveTanks(matrix, players, playerCount);
-    printGameField(matrix, HEIGHT, WIDTH, players, playerCount);
+    printGameField(matrix, HEIGHT, WIDTH, players, playerCount, currentPlayer);
 
-    printf("\nPlayer %s's turn.\n", tank->name);
+    printf("\nPlayer %s's turn.\n", currentPlayer->name);
 
     bool validInput = false;
     // Ošetření vstupu pro 'power'
@@ -402,10 +459,10 @@ void fireProjectile(Tank* tank, char** matrix, int playerCount, Tank* players) {
     // Upravit počáteční pozici projektilu
     int offsetX = cos(radian); // Offset na základě úhlu
     int offsetY = sin(radian); // Offset na základě úhlu
-    int puvX = tank->xPosition;
-    int puvY = tank->yPosition + 2;
-    int prevX = tank->xPosition; // Projektil začíná na stejné x-pozici jako tank
-    int prevY = tank->yPosition + 2; // Projektil začíná výše než tank
+    int puvX = currentPlayer->xPosition;
+    int puvY = currentPlayer->yPosition + 2;
+    int prevX = currentPlayer->xPosition; // Projektil začíná na stejné x-pozici jako tank
+    int prevY = currentPlayer->yPosition + 2; // Projektil začíná výše než tank
 
     while (true) {
         time += 0.05;
