@@ -28,7 +28,8 @@
 
 <div>
     <h2>Game Screenshot</h2>
-![ScreenShoot from the game](gameScreenShoot.png)</div>
+    <img src="./gameScreenShoot.png">    
+</div>
 
 
 <h2>Authors</h2>
